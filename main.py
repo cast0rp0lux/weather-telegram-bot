@@ -1,5 +1,6 @@
 import os
 import requests
+import datetime
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -32,7 +33,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = (
         "📋 *Commands*\n\n"
         "/weather – current weather\n"
-        "/forecast – forecast (3, 5 or 7 days)\n"
+        "/forecast – forecast\n"
         "/changecity – change your city\n"
         "/help – show this message"
     )
@@ -111,7 +112,6 @@ async def forecast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     city = user_cities[user_id]
-
     days = int(query.data.split("_")[1])
 
     geo = requests.get(
@@ -122,17 +122,69 @@ async def forecast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lon = geo["results"][0]["longitude"]
 
     data = requests.get(
-        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=temperature_2m_max,temperature_2m_min&timezone=auto"
+        "https://api.open-meteo.com/v1/forecast"
+        f"?latitude={lat}"
+        f"&longitude={lon}"
+        "&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,precipitation_probability_max"
+        "&timezone=auto"
     ).json()
 
     dates = data["daily"]["time"][:days]
     max_t = data["daily"]["temperature_2m_max"][:days]
     min_t = data["daily"]["temperature_2m_min"][:days]
+    wind = data["daily"]["windspeed_10m_max"][:days]
+    rain_prob = data["daily"]["precipitation_probability_max"][:days]
+    codes = data["daily"]["weathercode"][:days]
+
+    weather_icons = {
+        0: "☀️",
+        1: "🌤",
+        2: "⛅",
+        3: "☁️",
+        45: "🌫",
+        48: "🌫",
+        51: "🌦",
+        53: "🌦",
+        55: "🌧",
+        61: "🌧",
+        63: "🌧",
+        65: "🌧",
+        71: "❄️",
+        80: "🌦",
+        81: "🌧",
+        82: "🌧",
+        95: "⛈"
+    }
 
     msg = f"Forecast for {city}\n\n"
 
-    for d, mx, mn in zip(dates, max_t, min_t):
-        msg += f"{d}\n⬆ {mx}°C ⬇ {mn}°C\n\n"
+    today_summary = ""
+
+    for i, (d, mx, mn, w, rp, c) in enumerate(zip(dates, max_t, min_t, wind, rain_prob, codes)):
+
+        date_obj = datetime.datetime.strptime(d, "%Y-%m-%d")
+        day = date_obj.strftime("%a %d")
+
+        icon = weather_icons.get(c, "🌡")
+
+        msg += (
+            f"{day} {icon}\n"
+            f"🌡 {round(mx)}° / {round(mn)}°\n"
+            f"🌧 {rp}%\n"
+            f"💨 {round(w)} km/h\n\n"
+        )
+
+        if i == 0:
+            if rp >= 70:
+                today_summary = "☔ Heavy rain likely today."
+            elif rp >= 40:
+                today_summary = "🌧 Rain possible today."
+            elif rp >= 20:
+                today_summary = "🌦 Small chance of rain."
+            else:
+                today_summary = "☀️ No rain expected today."
+
+    msg += f"Today: {today_summary}"
 
     await query.edit_message_text(msg)
 
