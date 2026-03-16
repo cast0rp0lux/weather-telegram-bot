@@ -20,7 +20,7 @@ user_cities = {}
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     message = (
-        "Welcome to *Tell Me The Weather* 🌤\n\n"
+        "Welcome to *TellMeTheWeather* 🌤\n\n"
         "I can tell you the weather for your city.\n\n"
         "First tell me your city."
     )
@@ -64,14 +64,16 @@ async def weather(update: Update, context: ContextTypes.DEFAULT_TYPE):
     city = user_cities[user_id]
 
     geo = requests.get(
-        f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
+        f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1",
+        timeout=10
     ).json()
 
     lat = geo["results"][0]["latitude"]
     lon = geo["results"][0]["longitude"]
 
     data = requests.get(
-        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
+        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true",
+        timeout=10
     ).json()
 
     temp = data["current_weather"]["temperature"]
@@ -115,7 +117,8 @@ async def forecast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     days = int(query.data.split("_")[1])
 
     geo = requests.get(
-        f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1"
+        f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1",
+        timeout=10
     ).json()
 
     lat = geo["results"][0]["latitude"]
@@ -126,7 +129,8 @@ async def forecast_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"?latitude={lat}"
         f"&longitude={lon}"
         "&daily=weathercode,temperature_2m_max,temperature_2m_min,windspeed_10m_max,precipitation_probability_max"
-        "&timezone=auto"
+        "&timezone=auto",
+        timeout=10
     ).json()
 
     dates = data["daily"]["time"][:days]
@@ -207,5 +211,3 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, set_city))
 
 print("Bot funcionando...")
 app.run_polling()
-
-print("VERSION NUEVA 2")
