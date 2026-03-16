@@ -207,3 +207,5 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, set_city))
 
 print("Bot funcionando...")
 app.run_polling()
+
+print("VERSION NUEVA 2")
